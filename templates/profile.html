@@ -1,0 +1,67 @@
+{% extends "base.html" %}
+
+{% block title %}Profile — Spendly{% endblock %}
+
+{% block content %}
+<section class="profile-section">
+    <div class="profile-container">
+
+        <div class="profile-stats">
+            <div class="profile-stat">
+                <span class="profile-stat-label">Total Spent</span>
+                <span class="profile-stat-value">₹{{ "%.2f"|format(stats.total_spent) }}</span>
+            </div>
+            <div class="profile-stat">
+                <span class="profile-stat-label">Transactions</span>
+                <span class="profile-stat-value">{{ stats.transaction_count }}</span>
+            </div>
+            <div class="profile-stat">
+                <span class="profile-stat-label">Top Category</span>
+                <span class="profile-stat-value">{{ stats.top_category }}</span>
+            </div>
+        </div>
+
+        <div class="profile-main">
+            <div class="profile-transactions">
+                <h2 class="profile-section-title">Recent Transactions</h2>
+                <table class="profile-table">
+                    <thead>
+                        <tr>
+                            <th>Date</th>
+                            <th>Description</th>
+                            <th>Category</th>
+                            <th class="profile-table-amount-col">Amount</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for txn in transactions %}
+                        <tr>
+                            <td>{{ txn.date }}</td>
+                            <td>{{ txn.description }}</td>
+                            <td><span class="category-badge category-badge-{{ txn.category|lower }}">{{ txn.category }}</span></td>
+                            <td class="profile-table-amount-col">₹{{ "%.2f"|format(txn.amount) }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="profile-breakdown">
+                <h2 class="profile-section-title">By Category</h2>
+                {% for cat in categories %}
+                <div class="profile-cat-row">
+                    <div class="profile-cat-head">
+                        <span class="profile-cat-name">{{ cat.name }}</span>
+                        <span class="profile-cat-amount">₹{{ "%.2f"|format(cat.amount) }}</span>
+                    </div>
+                    <div class="profile-cat-track">
+                        <div class="profile-cat-bar profile-cat-bar-{{ cat.name|lower }}" style="width: {{ cat.percent }}%"></div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+
+    </div>
+</section>
+{% endblock %}
