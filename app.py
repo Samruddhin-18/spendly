@@ -5,6 +5,12 @@ from flask import Flask, redirect, render_template, request, session, url_for
 from werkzeug.security import check_password_hash, generate_password_hash
 
 from database.db import get_db, init_db, seed_db
+from database.queries import (
+    get_category_breakdown,
+    get_recent_transactions,
+    get_summary_stats,
+    get_user_by_id,
+)
 
 app = Flask(__name__)
 app.secret_key = os.environ.get("SECRET_KEY", "dev-secret-key")
@@ -117,36 +123,11 @@ def profile():
     if "user_id" not in session:
         return redirect(url_for("login"))
 
-    user = {
-        "name": "Demo User",
-        "email": "demo@spendly.com",
-        "member_since": "January 2026",
-        "initials": "DU",
-    }
-
-    stats = {
-        "total_spent": 271.24,
-        "transaction_count": 8,
-        "top_category": "Bills",
-    }
-
-    transactions = [
-        {"date": "2026-07-05", "description": "Electricity bill", "category": "Bills", "amount": 89.99},
-        {"date": "2026-07-11", "description": "New shoes", "category": "Shopping", "amount": 60.20},
-        {"date": "2026-07-07", "description": "Pharmacy", "category": "Health", "amount": 40.00},
-        {"date": "2026-07-01", "description": "Groceries", "category": "Food", "amount": 25.50},
-        {"date": "2026-07-09", "description": "Movie tickets", "category": "Entertainment", "amount": 15.75},
-    ]
-
-    categories = [
-        {"name": "Bills", "amount": 89.99, "percent": 33},
-        {"name": "Shopping", "amount": 60.20, "percent": 22},
-        {"name": "Health", "amount": 40.00, "percent": 15},
-        {"name": "Food", "amount": 25.50, "percent": 9},
-        {"name": "Entertainment", "amount": 15.75, "percent": 6},
-        {"name": "Transport", "amount": 12.00, "percent": 4},
-        {"name": "Other", "amount": 9.50, "percent": 4},
-    ]
+    user_id = session["user_id"]
+    user = get_user_by_id(user_id)
+    stats = get_summary_stats(user_id)
+    transactions = get_recent_transactions(user_id)
+    categories = get_category_breakdown(user_id)
 
     return render_template(
         "profile.html",
