@@ -111,3 +111,87 @@ Examples of what to record:
 - Common assertion patterns used across the test suite
 - Edge cases or bugs discovered while writing tests
 - Which test files cover which routes/features (to avoid duplication)
+
+## Institutional Knowledge (accumulated notes)
+
+### Actual fixture pattern used in this repo (differs from the generic template above)
+The repo does NOT use Flask-SQLAlchemy or an `app` config fixture with `:memory:`.
+Real pattern, established in `tests/test_backend_connection.py` and reused in
+`tests/test_06-date-filter-profile.py`:
+```python
+@pytest.fixture
+def temp_db(tmp_path, monkeypatch):
+    db_path = str(tmp_path / "test_spendly.db")
+    monkeypatch.setattr(db, "DB_PATH", db_path)          # database/db.py module-level DB_PATH
+    import database.queries as queries
+    monkeypatch.setattr(queries, "get_db", db.get_db)     # queries.py imports get_db at module load time
+    init_db()
+    seed_db()
+    conn = db.get_db()
+    user_id = conn.execute("SELECT id FROM users WHERE email = ?", ("demo@spendly.com",)).fetchone()["id"]
+    conn.close()
+    return user_id
+
+@pytest.fixture
+def client(temp_db, monkeypatch):
+    import app as app_module
+    monkeypatch.setattr(app_module, "init_db", lambda: None)   # app.py calls init_db()/seed_db() at import/startup
+    monkeypatch.setattr(app_module, "seed_db", lambda: None)
+    app_module.app.config["TESTING"] = True
+    with app_module.app.test_client() as c:
+        yield c, temp_db
+
+@pytest.fixture
+def auth_client(client):
+    c, user_id = client
+    with c.session_transaction() as sess:
+        sess["user_id"] = user_id
+        sess["user_name"] = "Demo User"
+    return c, user_id
+```
+Uses a real temp SQLite file via `tmp_path`, not `:memory:` (in-memory DBs don't
+survive across `get_db()` calls that open new connections each time, which this
+app does constantly).
+
+### Auth
+- `/profile` requires `session["user_id"]` — unauthenticated GET returns 302
+  redirecting to a URL containing `/login`.
+- Login sets `session["user_id"]` and `session["user_name"]`.
+
+### seed_db() seed data (database/db.py)
+- One user: `demo@spendly.com` / `Demo User`, password `demo123`.
+- 8 expenses dated relative to `date.today()` at day-of-month 1,3,5,7,9,11,13,15
+  (capped at 28), categories Food/Transport/Bills/Health/Entertainment/Shopping/Other/Food.
+- Total = 271.24, count = 8, top_category = "Bills" (unfiltered).
+- Day 1 = Food 25.50 "Groceries"; day 3 = Transport 12.00 "Bus pass";
+  day 5 = Bills 89.99 "Electricity bill". Useful for narrow-range assertions.
+
+### database/queries.py date-filter behavior (as implemented for Step 6)
+- `get_summary_stats`, `get_recent_transactions`, `get_category_breakdown` all
+  take optional `date_from=None, date_to=None`.
+- Filtering only activates when **both** `date_from` and `date_to` are truthy
+  (`if date_from and date_to:`) — a single bound alone does NOT filter.
+  This matters for "open-ended range" tests: current implementation treats a
+  lone bound as no-op, not a true open-ended range. Confirm with spec author
+  if stricter behavior is expected later.
+- Category breakdown `pct` values are ints that always sum to exactly 100
+  (remainder absorbed into the largest category).
+- Flash message text for `date_from > date_to` validation error (app.py):
+  exactly `"Start date must be before end date."`
+
+### Test files covering what
+- `tests/test_backend_connection.py` — Step 5: unfiltered get_summary_stats /
+  get_recent_transactions / get_category_breakdown / get_user_by_id, plus
+  basic GET /profile auth guard and happy path (no date params).
+- `tests/test_06-date-filter-profile.py` — Step 6: date_from/date_to filtering
+  at both the query-helper level and the GET /profile route level; presets;
+  malformed-date fallback; date_from > date_to flash+fallback; empty-range
+  zero state; percentage-sum-to-100 under filter.
+
+### Gotchas
+- `queries.py` does `from database.db import get_db` at module import time, so
+  monkeypatching `db.DB_PATH` alone does not affect `queries.get_db` — must
+  also `monkeypatch.setattr(queries, "get_db", db.get_db)` after patching DB_PATH.
+- `app.py` calls `init_db()`/`seed_db()` itself (likely at startup) — the
+  `client` fixture no-ops both via monkeypatch so it doesn't clobber the
+  already-seeded `temp_db`.
