@@ -1,7 +1,8 @@
 import os
 import sqlite3
+from datetime import date, datetime
 
-from flask import Flask, redirect, render_template, request, session, url_for
+from flask import Flask, flash, redirect, render_template, request, session, url_for
 from werkzeug.security import check_password_hash, generate_password_hash
 
 from database.db import get_db, init_db, seed_db
@@ -23,6 +24,35 @@ with app.app_context():
 # ------------------------------------------------------------------ #
 # Routes                                                              #
 # ------------------------------------------------------------------ #
+
+def _parse_iso_date(value):
+    if not value:
+        return None
+    try:
+        return datetime.strptime(value, "%Y-%m-%d").date().isoformat()
+    except ValueError:
+        return None
+
+
+def _months_back(today, months):
+    month_index = today.month - 1 - months
+    year = today.year + month_index // 12
+    month = month_index % 12 + 1
+    return date(year, month, 1)
+
+
+def _date_presets():
+    today = date.today()
+    this_month_start = today.replace(day=1)
+    last_3_start = _months_back(today, 2)
+    last_6_start = _months_back(today, 5)
+    today_iso = today.isoformat()
+    return {
+        "this_month": {"label": "This Month", "date_from": this_month_start.isoformat(), "date_to": today_iso},
+        "last_3_months": {"label": "Last 3 Months", "date_from": last_3_start.isoformat(), "date_to": today_iso},
+        "last_6_months": {"label": "Last 6 Months", "date_from": last_6_start.isoformat(), "date_to": today_iso},
+        "all_time": {"label": "All Time", "date_from": None, "date_to": None},
+    }
 
 @app.route("/")
 def landing():
@@ -124,10 +154,25 @@ def profile():
         return redirect(url_for("login"))
 
     user_id = session["user_id"]
+
+    date_from = _parse_iso_date(request.args.get("date_from"))
+    date_to = _parse_iso_date(request.args.get("date_to"))
+
+    if date_from and date_to and date_from > date_to:
+        flash("Start date must be before end date.")
+        date_from = date_to = None
+
+    presets = _date_presets()
+    active_preset = "all_time" if not date_from and not date_to else None
+    for name, preset in presets.items():
+        if (preset["date_from"], preset["date_to"]) == (date_from, date_to):
+            active_preset = name
+            break
+
     user = get_user_by_id(user_id)
-    stats = get_summary_stats(user_id)
-    transactions = get_recent_transactions(user_id)
-    categories = get_category_breakdown(user_id)
+    stats = get_summary_stats(user_id, date_from, date_to)
+    transactions = get_recent_transactions(user_id, date_from=date_from, date_to=date_to)
+    categories = get_category_breakdown(user_id, date_from, date_to)
 
     return render_template(
         "profile.html",
@@ -135,6 +180,10 @@ def profile():
         stats=stats,
         transactions=transactions,
         categories=categories,
+        date_from=date_from,
+        date_to=date_to,
+        presets=presets,
+        active_preset=active_preset,
     )
 
 
