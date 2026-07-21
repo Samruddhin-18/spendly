@@ -528,6 +528,56 @@ a { color: inherit; text-decoration: none; }
 .auth-switch a:hover { text-decoration: underline; }
 
 /* ------------------------------------------------------------------ */
+/* Dashboard content (Add Expense)                                     */
+/* ------------------------------------------------------------------ */
+
+.dashboard-section {
+    background: var(--paper-warm);
+    min-height: calc(100vh - 60px - 100px);
+    padding: 3rem 2rem 4rem;
+}
+
+.dashboard-container {
+    width: 100%;
+    max-width: 720px;
+    margin: 0 auto;
+}
+
+.dashboard-heading {
+    font-family: var(--font-display);
+    font-size: clamp(2rem, 4vw, 2.75rem);
+    color: var(--ink);
+    margin-bottom: 2rem;
+}
+
+.dashboard-card {
+    background: var(--paper-card);
+    border: 1px solid var(--border-soft);
+    border-radius: var(--radius-lg);
+    box-shadow: 0 8px 32px rgba(15, 15, 15, 0.06);
+    padding: 2.5rem;
+}
+
+.form-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1.5rem;
+}
+
+.dashboard-submit {
+    width: auto;
+    padding: 0.75rem 2.25rem;
+    margin-top: 1rem;
+}
+
+@media (max-width: 600px) {
+    .dashboard-section { padding: 2rem 1rem 3rem; }
+    .dashboard-card { padding: 1.75rem; }
+    .form-row { grid-template-columns: 1fr; gap: 0; }
+    .dashboard-submit { width: 100%; }
+}
+
+/* ------------------------------------------------------------------ */
 /* Profile page                                                        */
 /* ------------------------------------------------------------------ */
 
@@ -709,6 +759,24 @@ a { color: inherit; text-decoration: none; }
     font-size: 1.15rem;
     color: var(--ink);
     margin-bottom: 1.25rem;
+}
+
+.profile-transactions-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    margin-bottom: 1.25rem;
+}
+
+.profile-transactions-head .profile-section-title {
+    margin-bottom: 0;
+}
+
+.profile-add-expense-btn {
+    padding: 0.5rem 1.1rem;
+    font-size: 0.85rem;
+    white-space: nowrap;
 }
 
 .profile-transactions {
