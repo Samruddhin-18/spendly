@@ -95,6 +95,23 @@ def get_recent_transactions(user_id, limit=10, date_from=None, date_to=None):
     return [dict(row) for row in rows]
 
 
+def create_expense(user_id, amount, category, date, description):
+    """Insert a new expense row for user_id. Returns the new expense id."""
+    db = get_db()
+    try:
+        cursor = db.execute(
+            """
+            INSERT INTO expenses (user_id, amount, category, date, description)
+            VALUES (?, ?, ?, ?, ?)
+            """,
+            (user_id, amount, category, date, description or None),
+        )
+        db.commit()
+        return cursor.lastrowid
+    finally:
+        db.close()
+
+
 def get_category_breakdown(user_id, date_from=None, date_to=None):
     """Return list of dicts (name, amount, pct) per category for user_id,
     ordered by amount descending. pct values are integers summing to exactly 100
