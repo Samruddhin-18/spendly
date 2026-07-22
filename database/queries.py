@@ -87,7 +87,7 @@ def get_recent_transactions(user_id, limit=10, date_from=None, date_to=None):
 
     conn = get_db()
     rows = conn.execute(
-        "SELECT date, description, category, amount FROM expenses " + where + " "
+        "SELECT id, date, description, category, amount FROM expenses " + where + " "
         "ORDER BY date DESC, id DESC LIMIT ?",
         params,
     ).fetchall()
@@ -108,6 +108,35 @@ def create_expense(user_id, amount, category, date, description):
         )
         db.commit()
         return cursor.lastrowid
+    finally:
+        db.close()
+
+
+def get_expense_by_id(id, user_id):
+    """Return dict (id, amount, category, date, description) for the expense,
+    or None if it doesn't exist or isn't owned by user_id."""
+    db = get_db()
+    row = db.execute(
+        "SELECT id, amount, category, date, description FROM expenses "
+        "WHERE id = ? AND user_id = ?",
+        (id, user_id),
+    ).fetchone()
+    db.close()
+    return dict(row) if row else None
+
+
+def update_expense(id, user_id, amount, category, date, description):
+    """Update an existing expense owned by user_id. No-op if not owned."""
+    db = get_db()
+    try:
+        db.execute(
+            """
+            UPDATE expenses SET amount = ?, category = ?, date = ?, description = ?
+            WHERE id = ? AND user_id = ?
+            """,
+            (amount, category, date, description or None, id, user_id),
+        )
+        db.commit()
     finally:
         db.close()
 
